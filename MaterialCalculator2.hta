@@ -1,0 +1,209 @@
+<HTA:APPLICATION
+BORDER="thin"
+INNERBORDER="no"
+MAXIMIZEBUTTON="no"
+MINIMIZEBUTTON="yes"
+ICON="%windir%\system32\calc.exe"
+/>
+
+<head>
+<meta http-equiv="Content-Type" content="charset=gb2312">
+<style type="text/css">
+  body{background-color:#ECE9D8}
+  table{border:1px solid;border-collapse:collapse;text-align:center}
+  tr,td{border:1px solid;cellpadding:0px;cellspacing:0px}
+</style>
+</head>
+
+<body oncontextmenu="About()" onkeydown="DisableF5()">
+<center>
+<input type=text maxlength=2 id="rownum" size=2 title="行数" onkeypress="submitV(DrawTable)"><button onclick="DrawTable()">Draw</button><br><br>
+<input type=text id="stitle" style="width:100%" title="可以在这里给表格起个名字" onchange="setTitle()">
+<div class="w_box" id="w_box"></div>
+<hr title="C_C" ondblclick="ClrLog()">
+<input type=text id="strIn" style="width:100%" title="产率计算^_^" onkeypress="submitV(calc_c)" onchange="submitV(calc_c)">
+</center>
+<div class="c_box" id="c_box"></div>
+</body>
+
+<script type="text/javascript">
+var ans=0;
+var sBak='';
+var nWrk=0,nBak=0;
+var stdm=0;
+
+var sTtl='MaterialCalculator\u00B2 - 化学反应投料计算器\u00B2 [lifenjoiner@163.com]';
+var TitleId=new Array(['MW','mw'],['equiv.','eq'],['[m]mol','mm'],['[m]g','am'])
+
+function ID(id){
+  return document.getElementById(id);
+}
+
+function BakT(){
+  var t=ID('w_box').innerHTML;
+  if(t!=''){
+    sBak=ID('w_box').innerHTML;
+    //nBak应对应当前使用的表格
+    nBak=nWrk;
+  }
+}
+
+function UndoT(){
+  var t=ID('w_box').innerHTML;
+  var n=ID('rownum').value;
+  if(sBak!==''){
+    ID('w_box').innerHTML=sBak;sBak=t;
+    //维护nWrk，显示的不可靠
+    ID('rownum').value=nBak;nWrk=nBak;nBak=n;
+  }
+}
+
+function DrawTable(){
+  BakT();
+  var nRow=ID('rownum').value;
+  var sTable='<table><tr><td><button id=undo onclick="UndoT()">Undo</button></td>';
+  for (var i=0;i<TitleId.length;i++){
+    sTable+='<td>'+TitleId[i][0]+'</td>';
+  }
+  sTable+='</tr>';
+  for(var i=0;i<nRow;i++){
+    sTable+='<tr>';
+    sTable+='<td>'+(i+1)+'</td>';
+    sTable+='<td><input class='+TitleId[0][1]+' id='+TitleId[0][1]+i+' title="可以在这里预先除以密度、纯度" size=10></td>';
+    sTable+='<td><input class='+TitleId[1][1]+' id='+TitleId[1][1]+i+' title="可以在这里预先除以浓度" value=1 size=10></td>';
+    sTable+='<td><input class='+TitleId[2][1]+' id='+TitleId[2][1]+i+' onkeypress="submitV(calcT)" title="按回车计算"></td>';
+    sTable+='<td><input class='+TitleId[3][1]+' id='+TitleId[3][1]+i+' onkeypress="submitV(calcT)" title="按回车计算"></td>';
+    sTable+='</tr>';
+  }
+  sTable+='</table>';
+  ID('w_box').innerHTML=sTable;
+  //备份当前行数
+  nWrk=ID('rownum').value;
+}
+
+function submitV(Fun){
+  if(event.keyCode==13)Fun(event.srcElement);
+}
+
+//防止行数不对应
+function DisableF5(){
+  if(event.keyCode==116){event.keyCode=0;}
+}
+
+function calcT(oA){
+  oA.style.borderBottomColor='royalblue';
+  var cV=oA.value;
+  cV=getValS(cV);
+  //保证nWrk对应
+  ID('rownum').value=nWrk;
+  //备份
+  BakT();
+  //取一个单位的值
+  if(cV>=0){
+    var cEq=ID('eq'+oA.id.slice(2)).value;
+    cEq=getValS(cEq);
+    var cMW=ID('mw'+oA.id.slice(2)).value;
+    cMW=getValS(cMW);
+    stdm=cV/cEq;
+    switch(oA.className){
+    case 'mm':{
+      break;
+    }
+    case 'am':{
+      stdm/=cMW;
+      break;
+    }
+    default:
+    }
+  }else{
+    stdm=NaN;
+  }
+  //逐个计算
+  var iMW,iEq,imm,iam,iC;
+  var s;
+  for(var i=0;i<nWrk;i++){
+    for(var j=2;j<TitleId.length;j++){
+      iC=ID(TitleId[j][1]+i);
+      if(oA!==iC){
+        iC.style.borderBottomColor='chartreuse';
+        iMW=ID('mw'+i).value;
+        iMW=getValS(iMW);
+        iEq=ID('eq'+i).value;
+        iEq=getValS(iEq);
+        imm=ID('mm'+i).value;
+        imm=getValS(imm);
+        iam=ID('am'+i).value;
+        iam=getValS(iam);
+        switch(iC.className){
+        case 'mm':{
+          ID('mm'+i).value=stdm*iEq;
+          break;
+        }
+        case 'am':{
+          ID('am'+i).value=stdm*iMW*iEq;
+          break;
+        }
+        default:
+        }
+      }
+    }
+  }
+}
+
+function setTitle(){
+  document.title=ID('stitle').value||sTtl;
+}
+
+function calc_c(oA){
+  var sIn=oA.value
+  var tS;
+  ans=getValS(sIn);
+  tS='"'+sIn+'"';
+  if (sIn){
+    if(ans!=" : Error!"&&ans!=" : Succeed."&&!isNaN(ans)){
+        oA.value=ans;
+        tS+=' = ';
+    }
+    if(isNaN(ans))tS+=' : ';
+    tS+=ans;
+  }
+  tS+='\n'+ID('c_box').innerText;
+  ID('c_box').innerText=tS;
+}
+
+function ClrLog(){
+  ID('c_box').innerText='';
+}
+
+function About(){
+  var hlp='反馈方式：\n';
+  hlp+='lifenjoiner@163.com\n';
+  hlp+='https://github.com/lifenjoiner/MaterialCalculator2\n\n';
+  hlp+='1) 20110622, 初发布。\n';
+  hlp+='2) 20111129, 扩展计算器。\n';
+  hlp+='3) 20111202, 完善界面。\n';
+  if(event.srcElement.tagName!='INPUT')event.returnValue=false;
+  if(event.srcElement.tagName=='BODY')alert(hlp);
+}
+
+//调整窗口
+var mWd=580;
+var mHt=mWd*0.618;
+resizeTo(mWd,mHt);
+moveTo(screen.availWidth-mWd,screen.availHeight-mHt);
+
+//预置
+setTitle();
+ID('rownum').value=4;
+DrawTable();
+</script>
+
+<script type="text/vbscript">
+'使用vbs的计算风格
+function getValS(v)
+  on error resume next
+  if v="" then exit function
+  if Instr(v,"=") then execute v : tmp=" : Succeed." else tmp=eval(v)
+  if Err then Err.Clear : getValS=" : Error!" else getValS=tmp
+end function
+</script>
